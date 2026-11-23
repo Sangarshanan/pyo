@@ -807,8 +807,15 @@ class TestPyoTableObject:
         for i in range(4):
             assert t.get(i) == 0
 
-    # TO BE IMPLEMENTED
-    # def test_removeDC(self):
+    def test_removeDC(self):
+        cases = [
+            ([1.0] * 5, [1.0, 1.0, 0.99, 0.99, 0.98]),
+            (list(range(-2, 3)), [-2.0, -0.99, 0.01, 1.01, 2.01]),
+        ]
+        for data, expected in cases:
+            t = DataTable(size=len(data), chnls=1, init=data)
+            t.removeDC()
+            assert [round(value, 2) for value in t.getTable()] == expected
 
     def test_reverse(self):
         t = DataTable(size=10, chnls=1, init=list(range(10)))
@@ -847,8 +854,23 @@ class TestPyoTableObject:
         t.bipolarGain(gpos=0.5, gneg=0.5)
         assert t.getTable() == [-0.5, -0.25, 0.25, 0.5]
 
-    # TO BE IMPLEMENTED
-    # def test_lowpass(self):
+    def test_lowpass(self, audio_server):
+        cases = [
+            (
+                [1, -1, 1, -1, 1, -1, 1, -1],
+                1000,
+                [0.12, -0.02, 0.11, -0.03, 0.1, -0.04, 0.09, -0.04],
+            ),
+            (
+                list(range(8)),
+                5000,
+                [0.0, 0.47, 1.19, 2.04, 2.96, 3.91, 4.89, 5.88],
+            ),
+        ]
+        for data, freq, expected in cases:
+            t = DataTable(size=len(data), chnls=1, init=data)
+            t.lowpass(freq=freq)
+            assert [round(value, 2) for value in t.getTable()] == expected
 
     def test_fadein(self, audio_server):
         dur = 4 / audio_server.getSamplingRate()
@@ -1118,11 +1140,51 @@ class TestPyoMatrixObject:
             for i in range(width):
                 assert m.get(i, j) == expect[j][i]
 
-    # TO BE IMPLEMENTED
-    # def test_blur(self):
+    def test_blur(self):
+        data = [[0, 8, 0], [0, 0, 0], [0, 0, 0]]
+        m = NewMatrix(width=3, height=3, init=data)
+        m.blur()
+        assert [
+            [round(value, 2) for value in row] for row in m.getMatrix()
+        ] == [[0, 8, 0], [0, 0.67, 0], [0, 0, 0]]
 
-    # TO BE IMPLEMENTED
-    # def test_boost(self):
+        data = [list(range(i * 4, i * 4 + 4)) for i in range(4)]
+        m = NewMatrix(width=4, height=4, init=data)
+        m.blur()
+        assert [
+            [round(value, 2) for value in row] for row in m.getMatrix()
+        ] == [
+            [0, 1, 2, 3],
+            [4, 5.33, 6.33, 7],
+            [8, 8.67, 9.67, 11],
+            [12, 13, 14, 15],
+        ]
+
+        for w, h in [(1, 1), (2, 2), (5, 1), (1, 5), (3, 2)]:
+            data = [[i + j for i in range(w)] for j in range(h)]
+            m = NewMatrix(width=w, height=h, init=data)
+            m.blur()
+            assert m.getMatrix() == data
+
+    def test_boost(self):
+        data = [[0.5, -0.5, 0.9, -0.9]]
+        m = NewMatrix(width=4, height=1, init=data)
+        m.boost(min=-1.0, max=1.0, boost=0.1)
+
+        assert [round(value, 2) for value in m.getMatrix()[0]] == [
+            0.55,
+            -0.55,
+            0.99,
+            -0.99,
+        ]
+
+        m2 = NewMatrix(width=2, height=1, init=[[0.99, -0.99]])
+        m2.boost(min=-1.0, max=1.0, boost=0.5)
+        assert [round(value, 2) for value in m2.getMatrix()[0]] == [1, -1]
+
+        m3 = NewMatrix(width=2, height=1, init=[[0.5, 1.5]])
+        m3.boost(min=0, max=2, boost=0.5)
+        assert [round(value, 2) for value in m3.getMatrix()[0]] == [0.25, 1.75]
 
     def test_put(self):
         m = NewMatrix(width=4, height=2, init=[[1, 2, 3, 4], [5, 6, 7, 8]])
@@ -1132,6 +1194,13 @@ class TestPyoMatrixObject:
     def test_get(self):
         m = NewMatrix(width=4, height=2, init=[[1, 2, 3, 4], [5, 6, 7, 8]])
         assert m.get(x=2, y=1) == 7
+
+    def test_getMatrix(self):
+        data = [[1, 2, 3, 4], [5, 6, 7, 8]]
+        m = NewMatrix(width=4, height=2, init=data)
+        assert m.getMatrix() == data
+        m.put(value=10, x=2, y=1)
+        assert m.getMatrix() == [[1, 2, 3, 4], [5, 6, 10, 8]]
 
     def test_getInterpolated(self):
         m = NewMatrix(width=4, height=2, init=[[1, 2, 3, 4], [5, 6, 7, 8]])

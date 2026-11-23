@@ -2761,6 +2761,17 @@ class PyoMatrixObject(PyoObjectBase):
         else:
             return values
 
+    def getMatrix(self):
+        """
+        Returns the content of the matrix as a list of rows.
+
+        """
+        values = [obj.getData() for obj in self._base_objs]
+        if len(values) == 1:
+            return values[0]
+        else:
+            return values
+
     def getInterpolated(self, x=0.0, y=0.0):
         """
         Returns the value, as float, at a normalized position in the matrix.
